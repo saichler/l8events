@@ -1,0 +1,498 @@
+syntax = "proto3";
+package l8events;
+option go_package = "./types/l8events";
+
+// ─── Category Sub-type Enums ───
+
+// Audit event sub-categories.
+enum AuditEventType {
+  AUDIT_EVENT_TYPE_UNSPECIFIED = 0;
+  AUDIT_EVENT_TYPE_CREATE = 1;
+  AUDIT_EVENT_TYPE_UPDATE = 2;
+  AUDIT_EVENT_TYPE_DELETE = 3;
+  AUDIT_EVENT_TYPE_LOGIN = 4;
+  AUDIT_EVENT_TYPE_LOGOUT = 5;
+  AUDIT_EVENT_TYPE_CONFIG_CHANGE = 6;
+  AUDIT_EVENT_TYPE_PERMISSION_CHANGE = 7;
+  AUDIT_EVENT_TYPE_EXPORT = 8;
+  AUDIT_EVENT_TYPE_IMPORT = 9;
+}
+
+// System event sub-categories.
+enum SystemEventType {
+  SYSTEM_EVENT_TYPE_UNSPECIFIED = 0;
+  SYSTEM_EVENT_TYPE_SERVICE_START = 1;
+  SYSTEM_EVENT_TYPE_SERVICE_STOP = 2;
+  SYSTEM_EVENT_TYPE_HEALTH_CHECK = 3;
+  SYSTEM_EVENT_TYPE_CONFIG_RELOAD = 4;
+  SYSTEM_EVENT_TYPE_LICENSE = 5;
+  SYSTEM_EVENT_TYPE_ERROR = 6;
+  SYSTEM_EVENT_TYPE_UPGRADE = 7;
+  SYSTEM_EVENT_TYPE_BACKUP = 8;
+  SYSTEM_EVENT_TYPE_RESTORE = 9;
+}
+
+// Monitoring event sub-categories.
+enum MonitoringEventType {
+  MONITORING_EVENT_TYPE_UNSPECIFIED = 0;
+  MONITORING_EVENT_TYPE_POLL_SUCCESS = 1;
+  MONITORING_EVENT_TYPE_POLL_FAILURE = 2;
+  MONITORING_EVENT_TYPE_TARGET_UNREACHABLE = 3;
+  MONITORING_EVENT_TYPE_TARGET_RECOVERED = 4;
+  MONITORING_EVENT_TYPE_DATA_STALE = 5;
+  MONITORING_EVENT_TYPE_COLLECTION_START = 6;
+  MONITORING_EVENT_TYPE_COLLECTION_COMPLETE = 7;
+  MONITORING_EVENT_TYPE_PARSE_ERROR = 8;
+}
+
+// Security event sub-categories.
+enum SecurityEventType {
+  SECURITY_EVENT_TYPE_UNSPECIFIED = 0;
+  SECURITY_EVENT_TYPE_AUTH_SUCCESS = 1;
+  SECURITY_EVENT_TYPE_AUTH_FAILURE = 2;
+  SECURITY_EVENT_TYPE_ACCESS_DENIED = 3;
+  SECURITY_EVENT_TYPE_PRIVILEGE_ESCALATION = 4;
+  SECURITY_EVENT_TYPE_CERT_EXPIRY = 5;
+  SECURITY_EVENT_TYPE_CERT_RENEWED = 6;
+  SECURITY_EVENT_TYPE_POLICY_VIOLATION = 7;
+  SECURITY_EVENT_TYPE_BRUTE_FORCE = 8;
+  SECURITY_EVENT_TYPE_TOKEN_REVOKED = 9;
+}
+
+// Integration event sub-categories.
+enum IntegrationEventType {
+  INTEGRATION_EVENT_TYPE_UNSPECIFIED = 0;
+  INTEGRATION_EVENT_TYPE_API_CALL_SUCCESS = 1;
+  INTEGRATION_EVENT_TYPE_API_CALL_FAILURE = 2;
+  INTEGRATION_EVENT_TYPE_WEBHOOK_RECEIVED = 3;
+  INTEGRATION_EVENT_TYPE_WEBHOOK_FAILED = 4;
+  INTEGRATION_EVENT_TYPE_SYNC_START = 5;
+  INTEGRATION_EVENT_TYPE_SYNC_COMPLETE = 6;
+  INTEGRATION_EVENT_TYPE_SYNC_FAILED = 7;
+  INTEGRATION_EVENT_TYPE_CONNECTOR_UP = 8;
+  INTEGRATION_EVENT_TYPE_CONNECTOR_DOWN = 9;
+}
+
+// Network event sub-categories.
+enum NetworkEventType {
+  NETWORK_EVENT_TYPE_UNSPECIFIED = 0;
+  NETWORK_EVENT_TYPE_DEVICE_STATUS = 1;
+  NETWORK_EVENT_TYPE_INTERFACE = 2;
+  NETWORK_EVENT_TYPE_BGP = 3;
+  NETWORK_EVENT_TYPE_OSPF = 4;
+  NETWORK_EVENT_TYPE_MPLS = 5;
+  NETWORK_EVENT_TYPE_LDP = 6;
+  NETWORK_EVENT_TYPE_SR = 7;
+  NETWORK_EVENT_TYPE_TE = 8;
+  NETWORK_EVENT_TYPE_VRF = 9;
+  NETWORK_EVENT_TYPE_QOS = 10;
+  NETWORK_EVENT_TYPE_HARDWARE = 11;
+}
+
+// Kubernetes event sub-categories.
+enum KubernetesEventType {
+  KUBERNETES_EVENT_TYPE_UNSPECIFIED = 0;
+  KUBERNETES_EVENT_TYPE_POD = 1;
+  KUBERNETES_EVENT_TYPE_NODE = 2;
+  KUBERNETES_EVENT_TYPE_DEPLOYMENT = 3;
+  KUBERNETES_EVENT_TYPE_STATEFULSET = 4;
+  KUBERNETES_EVENT_TYPE_DAEMONSET = 5;
+  KUBERNETES_EVENT_TYPE_SERVICE = 6;
+  KUBERNETES_EVENT_TYPE_NAMESPACE = 7;
+  KUBERNETES_EVENT_TYPE_NETWORK_POLICY = 8;
+}
+
+// Performance metric sub-categories.
+enum PerformanceMetric {
+  PERFORMANCE_METRIC_UNSPECIFIED = 0;
+  PERFORMANCE_METRIC_CPU = 1;
+  PERFORMANCE_METRIC_MEMORY = 2;
+  PERFORMANCE_METRIC_TEMPERATURE = 3;
+  PERFORMANCE_METRIC_TRAFFIC = 4;
+  PERFORMANCE_METRIC_DISK = 5;
+  PERFORMANCE_METRIC_FAN_SPEED = 6;
+  PERFORMANCE_METRIC_POWER_LOAD = 7;
+  PERFORMANCE_METRIC_VOLTAGE = 8;
+  PERFORMANCE_METRIC_LATENCY = 9;
+  PERFORMANCE_METRIC_PACKET_LOSS = 10;
+}
+
+// Threshold direction.
+enum ThresholdType {
+  THRESHOLD_TYPE_UNSPECIFIED = 0;
+  THRESHOLD_TYPE_UPPER = 1;
+  THRESHOLD_TYPE_LOWER = 2;
+}
+
+// Compute event sub-categories.
+enum ComputeEventType {
+  COMPUTE_EVENT_TYPE_UNSPECIFIED = 0;
+  COMPUTE_EVENT_TYPE_HYPERVISOR_STATUS = 1;
+  COMPUTE_EVENT_TYPE_VM_STATUS = 2;
+  COMPUTE_EVENT_TYPE_VM_MIGRATION = 3;
+  COMPUTE_EVENT_TYPE_VM_RESOURCE = 4;
+  COMPUTE_EVENT_TYPE_HOST_RESOURCE = 5;
+}
+
+// Storage event sub-categories.
+enum StorageEventType {
+  STORAGE_EVENT_TYPE_UNSPECIFIED = 0;
+  STORAGE_EVENT_TYPE_ARRAY_STATUS = 1;
+  STORAGE_EVENT_TYPE_VOLUME_STATUS = 2;
+  STORAGE_EVENT_TYPE_CAPACITY = 3;
+  STORAGE_EVENT_TYPE_REPLICATION = 4;
+  STORAGE_EVENT_TYPE_DISK = 5;
+  STORAGE_EVENT_TYPE_CONTROLLER = 6;
+}
+
+// Power event sub-categories.
+enum PowerEventType {
+  POWER_EVENT_TYPE_UNSPECIFIED = 0;
+  POWER_EVENT_TYPE_PSU_STATUS = 1;
+  POWER_EVENT_TYPE_PDU_STATUS = 2;
+  POWER_EVENT_TYPE_UPS_STATUS = 3;
+  POWER_EVENT_TYPE_BATTERY = 4;
+  POWER_EVENT_TYPE_LOAD = 5;
+  POWER_EVENT_TYPE_VOLTAGE = 6;
+  POWER_EVENT_TYPE_TEMPERATURE = 7;
+}
+
+// GPU event sub-categories.
+enum GpuEventType {
+  GPU_EVENT_TYPE_UNSPECIFIED = 0;
+  GPU_EVENT_TYPE_STATUS = 1;
+  GPU_EVENT_TYPE_TEMPERATURE = 2;
+  GPU_EVENT_TYPE_MEMORY = 3;
+  GPU_EVENT_TYPE_UTILIZATION = 4;
+  GPU_EVENT_TYPE_ERROR = 5;
+  GPU_EVENT_TYPE_POWER = 6;
+}
+
+// Topology event sub-categories.
+enum TopologyEventType {
+  TOPOLOGY_EVENT_TYPE_UNSPECIFIED = 0;
+  TOPOLOGY_EVENT_TYPE_LINK_DISCOVERED = 1;
+  TOPOLOGY_EVENT_TYPE_LINK_LOST = 2;
+  TOPOLOGY_EVENT_TYPE_NEIGHBOR_CHANGE = 3;
+  TOPOLOGY_EVENT_TYPE_TOPOLOGY_CHANGE = 4;
+}
+
+// Automation event sub-categories.
+enum AutomationEventType {
+  AUTOMATION_EVENT_TYPE_UNSPECIFIED = 0;
+  AUTOMATION_EVENT_TYPE_RULE_TRIGGERED = 1;
+  AUTOMATION_EVENT_TYPE_RULE_COMPLETED = 2;
+  AUTOMATION_EVENT_TYPE_RULE_FAILED = 3;
+  AUTOMATION_EVENT_TYPE_POLICY_VIOLATION = 4;
+  AUTOMATION_EVENT_TYPE_REMEDIATION = 5;
+}
+
+// ─── Category Event Messages ───
+
+// Category 1: User action audit trail.
+message AuditEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  AuditEventType sub_category = 5;
+  string user_id = 6;
+  string user_name = 7;
+  string user_ip = 8;
+  string action = 9;
+  string service_name = 10;
+  int32 service_area = 11;
+  string entity_name = 12;
+  string previous_value = 13;
+  string new_value = 14;
+  string message = 15;
+}
+
+// Category 2: Internal system events.
+message SystemEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  SystemEventType sub_category = 5;
+  string service_name = 6;
+  string node_id = 7;
+  string node_ip = 8;
+  string previous_state = 9;
+  string current_state = 10;
+  string version = 11;
+  string error_code = 12;
+  string error_detail = 13;
+  string message = 14;
+}
+
+// Category 3: Polling and collection lifecycle events.
+message MonitoringEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  MonitoringEventType sub_category = 5;
+  string target_id = 6;
+  string target_name = 7;
+  string target_type = 8;
+  string protocol = 9;
+  int64 poll_duration_ms = 10;
+  int32 items_collected = 11;
+  string error_code = 12;
+  string error_detail = 13;
+  int64 last_success_at = 14;
+  int64 stale_duration_sec = 15;
+  string message = 16;
+}
+
+// Category 4: Security-related events.
+message SecurityEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  SecurityEventType sub_category = 5;
+  string user_id = 6;
+  string user_name = 7;
+  string user_ip = 8;
+  string target_resource = 9;
+  string auth_method = 10;
+  string failure_reason = 11;
+  int32 attempt_count = 12;
+  string cert_subject = 13;
+  int64 cert_expiry = 14;
+  string policy_name = 15;
+  string message = 16;
+}
+
+// Category 5: External system integration events.
+message IntegrationEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  IntegrationEventType sub_category = 5;
+  string integration_name = 6;
+  string remote_system = 7;
+  string remote_url = 8;
+  string http_method = 9;
+  int32 http_status = 10;
+  int64 request_duration_ms = 11;
+  int32 items_synced = 12;
+  string error_code = 13;
+  string error_detail = 14;
+  int32 retry_count = 15;
+  string message = 16;
+}
+
+// Category 7: Network infrastructure events.
+message NetworkEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  string device_name = 5;
+  string device_ip = 6;
+  int32 device_type = 7;
+  NetworkEventType sub_category = 8;
+  string component_id = 9;
+  string component_name = 10;
+  string previous_state = 11;
+  string current_state = 12;
+  string message = 13;
+}
+
+// Category 8: Kubernetes cluster events.
+message KubernetesEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  string cluster_id = 5;
+  string namespace = 6;
+  KubernetesEventType sub_category = 7;
+  string resource_name = 8;
+  string resource_kind = 9;
+  string previous_state = 10;
+  string current_state = 11;
+  string reason = 12;
+  string message = 13;
+  string container_name = 14;
+  int32 ready_replicas = 15;
+  int32 desired_replicas = 16;
+}
+
+// Category 9: Performance threshold violation events.
+message PerformanceEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  PerformanceMetric sub_category = 5;
+  string metric_name = 6;
+  string metric_unit = 7;
+  double current_value = 8;
+  double threshold_value = 9;
+  ThresholdType threshold_type = 10;
+  double baseline_value = 11;
+  int64 duration_seconds = 12;
+  string component_id = 13;
+  string component_name = 14;
+  string message = 15;
+}
+
+// Category 10: Parsed syslog messages.
+message SyslogEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  string device_name = 5;
+  string device_ip = 6;
+  int32 facility = 7;
+  string facility_name = 8;
+  int32 syslog_severity = 9;
+  string syslog_severity_name = 10;
+  string mnemonic = 11;
+  string process_name = 12;
+  string raw_message = 13;
+  string parsed_message = 14;
+  int64 timestamp = 15;
+}
+
+// Category 11: Parsed SNMP traps.
+message TrapEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  string device_name = 5;
+  string device_ip = 6;
+  string trap_oid = 7;
+  string trap_name = 8;
+  int32 generic_trap = 9;
+  int32 specific_trap = 10;
+  string enterprise_oid = 11;
+  string snmp_version = 12;
+  string community = 13;
+  map<string, string> varbinds = 14;
+  int64 uptime = 15;
+  string message = 16;
+}
+
+// Category 12: Hypervisor and virtual machine events.
+message ComputeEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  ComputeEventType sub_category = 5;
+  string host_name = 6;
+  string host_ip = 7;
+  string vm_name = 8;
+  string vm_id = 9;
+  string previous_state = 10;
+  string current_state = 11;
+  int32 cpu_count = 12;
+  int64 memory_mb = 13;
+  string message = 14;
+}
+
+// Category 13: Storage system events.
+message StorageEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  StorageEventType sub_category = 5;
+  string array_name = 6;
+  string volume_name = 7;
+  string previous_state = 8;
+  string current_state = 9;
+  int64 capacity_bytes = 10;
+  int64 used_bytes = 11;
+  double usage_percent = 12;
+  string message = 13;
+}
+
+// Category 14: Power infrastructure events.
+message PowerEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  PowerEventType sub_category = 5;
+  string device_name = 6;
+  string component_name = 7;
+  string previous_state = 8;
+  string current_state = 9;
+  double voltage = 10;
+  double current_amps = 11;
+  double load_percent = 12;
+  double wattage = 13;
+  double battery_percent = 14;
+  int32 runtime_minutes = 15;
+  string message = 16;
+}
+
+// Category 15: GPU device events.
+message GpuEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  GpuEventType sub_category = 5;
+  string device_name = 6;
+  string host_name = 7;
+  int32 gpu_index = 8;
+  string gpu_model = 9;
+  string previous_state = 10;
+  string current_state = 11;
+  double temperature_celsius = 12;
+  double utilization_percent = 13;
+  int64 memory_used_bytes = 14;
+  int64 memory_total_bytes = 15;
+  double power_draw_watts = 16;
+  int64 ecc_errors = 17;
+  string message = 18;
+}
+
+// Category 16: Topology change events.
+message TopologyEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  TopologyEventType sub_category = 5;
+  string local_device_id = 6;
+  string local_device_name = 7;
+  string local_interface = 8;
+  string remote_device_id = 9;
+  string remote_device_name = 10;
+  string remote_interface = 11;
+  string discovery_protocol = 12;
+  string previous_state = 13;
+  string current_state = 14;
+  string message = 15;
+}
+
+// Category 17: Automation workflow events.
+message AutomationEvent {
+  string event_id = 1;
+  string property_id = 2;
+  string source_id = 3;
+  string source_type = 4;
+  AutomationEventType sub_category = 5;
+  string rule_id = 6;
+  string rule_name = 7;
+  string workflow_id = 8;
+  string trigger_event_id = 9;
+  string action_taken = 10;
+  string previous_state = 11;
+  string current_state = 12;
+  bool success = 13;
+  string error_message = 14;
+  int64 duration_ms = 15;
+  string message = 16;
+}

@@ -32,15 +32,26 @@ enum EventState {
   EVENT_STATE_ARCHIVED = 4;
 }
 
-// Event categories — generic, extensible via CUSTOM.
+// Event categories — covers audit, system, data center infrastructure, and extensible custom.
 enum EventCategory {
   EVENT_CATEGORY_UNSPECIFIED = 0;
-  EVENT_CATEGORY_AUDIT = 1;
-  EVENT_CATEGORY_SYSTEM = 2;
-  EVENT_CATEGORY_MONITORING = 3;
-  EVENT_CATEGORY_SECURITY = 4;
-  EVENT_CATEGORY_INTEGRATION = 5;
-  EVENT_CATEGORY_CUSTOM = 6;
+  EVENT_CATEGORY_AUDIT = 1;         // User action audit trail
+  EVENT_CATEGORY_SYSTEM = 2;        // System/infrastructure events
+  EVENT_CATEGORY_MONITORING = 3;    // Generic telemetry/monitoring
+  EVENT_CATEGORY_SECURITY = 4;      // Login, access, threat events
+  EVENT_CATEGORY_INTEGRATION = 5;   // External system events
+  EVENT_CATEGORY_CUSTOM = 6;        // Consumer-defined category
+  EVENT_CATEGORY_NETWORK = 7;       // Device status, interfaces, routing (BGP/OSPF/MPLS/SR), hardware
+  EVENT_CATEGORY_KUBERNETES = 8;    // Pod, node, workload, namespace, network policy
+  EVENT_CATEGORY_PERFORMANCE = 9;   // Threshold violations (CPU, memory, temperature, traffic)
+  EVENT_CATEGORY_SYSLOG = 10;       // Syslog messages from devices
+  EVENT_CATEGORY_TRAP = 11;         // SNMP traps from devices
+  EVENT_CATEGORY_COMPUTE = 12;      // Hypervisors, VMs, hosts
+  EVENT_CATEGORY_STORAGE = 13;      // Storage arrays, volumes, capacity
+  EVENT_CATEGORY_POWER = 14;        // PDUs, UPS, battery, power consumption
+  EVENT_CATEGORY_GPU = 15;          // GPU device status, utilization, temperature
+  EVENT_CATEGORY_TOPOLOGY = 16;     // Topology changes, link up/down, connectivity
+  EVENT_CATEGORY_AUTOMATION = 17;   // Workflow execution, policy compliance
 }
 
 // Maintenance window status.

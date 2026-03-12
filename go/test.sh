@@ -17,7 +17,7 @@ echo "About to run tests"
 read -n 1 -s -r -p "Press any key to continue..."
 
 # Run tests with coverage
-go test -v -coverpkg=./state/...,./archive/...,./maintenance/... -coverprofile=cover.html ./... --failfast
+go test -v -coverpkg=./state/...,./archive/...,./maintenance/...,./convert/... -coverprofile=cover.html ./... --failfast
 
 # Open the coverage report in a browser
 go tool cover -html=cover.html

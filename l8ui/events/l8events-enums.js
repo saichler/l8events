@@ -60,7 +60,18 @@
         { value: 3, label: 'Monitoring' },
         { value: 4, label: 'Security' },
         { value: 5, label: 'Integration' },
-        { value: 6, label: 'Custom' }
+        { value: 6, label: 'Custom' },
+        { value: 7, label: 'Network' },
+        { value: 8, label: 'Kubernetes' },
+        { value: 9, label: 'Performance' },
+        { value: 10, label: 'Syslog' },
+        { value: 11, label: 'Trap' },
+        { value: 12, label: 'Compute' },
+        { value: 13, label: 'Storage' },
+        { value: 14, label: 'Power' },
+        { value: 15, label: 'GPU' },
+        { value: 16, label: 'Topology' },
+        { value: 17, label: 'Automation' }
     ]);
 
     const MAINTENANCE_STATUS = Layer8EnumFactory.create([
