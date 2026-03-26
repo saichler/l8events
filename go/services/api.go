@@ -16,25 +16,16 @@
 package services
 
 import (
-	"fmt"
 	"time"
 
 	evt "github.com/saichler/l8events/go/types/l8events"
-	"github.com/saichler/l8srlz/go/serialize/object"
 	"github.com/saichler/l8types/go/ifs"
 )
 
-// PostEvent creates and posts an EventRecord to the Events service.
-// Returns silently if the Events service is not activated.
+// PostEvent creates and posts an EventRecord to the Events service via unicast.
 func PostEvent(vnic ifs.IVNic, category evt.EventCategory, eventType string,
 	severity evt.Severity, sourceId, sourceName, sourceType, message string,
 	attributes map[string]string) {
-
-	h, ok := vnic.Resources().Services().ServiceHandler(EventsServiceName, EventsServiceArea)
-	if !ok {
-		vnic.Resources().Logger().Warning("PostEvent: Events service not activated, event discarded")
-		return
-	}
 
 	event := &evt.EventRecord{
 		Category:   category,
@@ -48,9 +39,10 @@ func PostEvent(vnic ifs.IVNic, category evt.EventCategory, eventType string,
 		Attributes: attributes,
 	}
 
-	resp := h.Post(object.New(nil, event), vnic)
-	if resp.Error() != nil {
-		vnic.Resources().Logger().Error(fmt.Sprintf("PostEvent failed: %v", resp.Error()))
+	err := vnic.Unicast("",
+		EventsServiceName, EventsServiceArea, ifs.POST, event)
+	if err != nil {
+		vnic.Resources().Logger().Warning("PostEvent: " + err.Error())
 	}
 }
 
