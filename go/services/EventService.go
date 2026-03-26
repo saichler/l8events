@@ -36,7 +36,6 @@ const (
 func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
 	p := common.CreatePersistency(creds, dbname, vnic)
 	sla := ifs.NewServiceLevelAgreement(&persist.OrmService{}, EventsServiceName, EventsServiceArea, true, &EventCallback{})
-	sla.SetServiceGroup(ifs.SystemServiceGroup)
 	sla.SetServiceItem(&evt.EventRecord{})
 	sla.SetServiceItemList(&evt.EventRecordList{})
 	sla.SetVoter(true)
