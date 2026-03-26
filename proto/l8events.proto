@@ -172,11 +172,6 @@ message EventRecordList {
   l8api.L8MetaData metadata = 2;
 }
 
-message AlarmRecordList {
-  repeated AlarmRecord list = 1;
-  l8api.L8MetaData metadata = 2;
-}
-
 message MaintenanceWindowList {
   repeated MaintenanceWindow list = 1;
   l8api.L8MetaData metadata = 2;
