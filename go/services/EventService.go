@@ -40,6 +40,7 @@ func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
 	sla.SetServiceItemList(&evt.EventRecordList{})
 	sla.SetVoter(true)
 	sla.SetPrimaryKeys("EventId")
+	sla.SetNonUniqueKeys("OccurredAt")
 	sla.SetArgs(p, true)
 	sla.SetTransactional(true)
 	sla.SetReplication(true)
