@@ -1,6 +1,7 @@
 syntax = "proto3";
 package l8events;
 option go_package = "./types/l8events";
+import "api.proto";
 
 // ─── Enums ───
 
@@ -162,4 +163,21 @@ message MaintenanceWindow {
   int32 recurrence_interval = 10;
   repeated string scope_ids = 11;
   repeated string scope_types = 12;
+}
+
+// ─── List Types ───
+
+message EventRecordList {
+  repeated EventRecord list = 1;
+  l8api.L8MetaData metadata = 2;
+}
+
+message AlarmRecordList {
+  repeated AlarmRecord list = 1;
+  l8api.L8MetaData metadata = 2;
+}
+
+message MaintenanceWindowList {
+  repeated MaintenanceWindow list = 1;
+  l8api.L8MetaData metadata = 2;
 }
