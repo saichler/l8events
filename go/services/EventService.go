@@ -53,6 +53,9 @@ func ActivateEvents(vnic ifs.IVNic) {
 type EventCallback struct{}
 
 func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotification bool, vnic ifs.IVNic) (interface{}, bool, error) {
+	if action == ifs.GET {
+		return nil, true, nil
+	}
 	event, ok := elem.(*evt.EventRecord)
 	if !ok {
 		return nil, true, errors.New("invalid event type")
