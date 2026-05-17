@@ -1,6 +1,6 @@
 package convert
 
-import evt "github.com/saichler/l8events/go/types/l8events"
+import evt "github.com/saichler/l8types/go/types/l8events"
 
 // registerBuiltins wires all 16 built-in category parsers into the converter.
 func registerBuiltins(c *Converter) {

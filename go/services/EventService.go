@@ -20,7 +20,7 @@ import (
 	"github.com/saichler/l8events/go/common"
 	"time"
 
-	evt "github.com/saichler/l8events/go/types/l8events"
+	evt "github.com/saichler/l8types/go/types/l8events"
 	"github.com/saichler/l8orm/go/orm/persist"
 	"github.com/saichler/l8types/go/ifs"
 	"github.com/saichler/l8types/go/types/l8api"

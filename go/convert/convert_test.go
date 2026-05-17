@@ -1,7 +1,7 @@
 package convert
 
 import (
-	evt "github.com/saichler/l8events/go/types/l8events"
+	evt "github.com/saichler/l8types/go/types/l8events"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"testing"
