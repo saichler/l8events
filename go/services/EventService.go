@@ -17,7 +17,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"github.com/saichler/l8events/go/common"
 	"time"
 
@@ -59,16 +58,13 @@ func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
 type EventCallback struct{}
 
 func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotification bool, vnic ifs.IVNic) (interface{}, bool, error) {
-	fmt.Printf("[DEBUG-EVTSVC] Before() called, action=%v, isNotification=%v, elem type=%T\n", action, isNotification, elem)
 	if action == ifs.GET {
 		return nil, true, nil
 	}
 	event, ok := elem.(*evt.EventRecord)
 	if !ok {
-		fmt.Printf("[DEBUG-EVTSVC] Type assertion failed, elem=%v\n", elem)
 		return nil, true, errors.New("invalid event type")
 	}
-	fmt.Printf("[DEBUG-EVTSVC] EventRecord: category=%v, message=%s, eventId=%s\n", event.Category, event.Message, event.EventId)
 
 	switch action {
 	case ifs.POST:
@@ -82,7 +78,6 @@ func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotific
 		if event.State == evt.EventState_EVENT_STATE_UNSPECIFIED {
 			event.State = evt.EventState_EVENT_STATE_NEW
 		}
-		fmt.Printf("[DEBUG-EVTSVC] POST processed, eventId=%s\n", event.EventId)
 		return event, true, nil
 	case ifs.PUT:
 		return nil, true, errors.New("events are immutable, PUT is not allowed")
@@ -94,6 +89,5 @@ func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotific
 }
 
 func (this *EventCallback) After(elem interface{}, action ifs.Action, notify bool, vnic ifs.IVNic) (interface{}, bool, error) {
-	fmt.Printf("[DEBUG-EVTSVC] After() called, action=%v, notify=%v\n", action, notify)
 	return nil, true, nil
 }
