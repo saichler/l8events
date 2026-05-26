@@ -43,8 +43,7 @@ func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
 	sla.SetNonUniqueKeys("OccurredAt")
 	sla.SetArgs(p, true)
 	sla.SetTransactional(true)
-	sla.SetReplication(true)
-	sla.SetReplicationCount(3)
+	sla.SetReplication(false)
 
 	webSv := web.New(EventsServiceName, EventsServiceArea, 0)
 	webSv.AddEndpoint(&evt.EventRecord{}, ifs.POST, &l8web.L8Empty{})
