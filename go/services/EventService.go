@@ -17,15 +17,11 @@ package services
 
 import (
 	"errors"
-	"github.com/saichler/l8events/go/common"
 	"time"
 
-	"github.com/saichler/l8orm/go/orm/persist"
+	common "github.com/saichler/l8common/go/common"
 	"github.com/saichler/l8types/go/ifs"
-	"github.com/saichler/l8types/go/types/l8api"
 	evt "github.com/saichler/l8types/go/types/l8events"
-	"github.com/saichler/l8types/go/types/l8web"
-	"github.com/saichler/l8utils/go/utils/web"
 )
 
 const (
@@ -34,25 +30,14 @@ const (
 )
 
 func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
-	p := common.CreatePersistency(creds, dbname, vnic)
-	sla := ifs.NewServiceLevelAgreement(&persist.OrmService{}, EventsServiceName, EventsServiceArea, true, &EventCallback{})
-	sla.SetServiceItem(&evt.EventRecord{})
-	sla.SetServiceItemList(&evt.EventRecordList{})
-	sla.SetVoter(true)
-	sla.SetPrimaryKeys("EventId")
-	sla.SetNonUniqueKeys("OccurredAt")
-	sla.SetArgs(p, true)
-	sla.SetTransactional(true)
-	sla.SetReplication(false)
-
-	webSv := web.New(EventsServiceName, EventsServiceArea, 0)
-	webSv.AddEndpoint(&evt.EventRecord{}, ifs.POST, &l8web.L8Empty{})
-	webSv.AddEndpoint(&evt.EventRecord{}, ifs.PATCH, &l8web.L8Empty{})
-	webSv.AddEndpoint(&l8api.L8Query{}, ifs.GET, &evt.EventRecordList{})
-	sla.SetWebService(webSv)
-
-	vnic.Resources().Services().Activate(sla, vnic)
+	common.ActivateService(common.ServiceConfig{
+		ServiceName: EventsServiceName, ServiceArea: EventsServiceArea,
+		PrimaryKey: "EventId", Voter: true, NonUniqueKeys: []string{"OccurredAt"},
+		Replication: boolPtr(false), Callback: &EventCallback{},
+	}, &evt.EventRecord{}, &evt.EventRecordList{}, creds, dbname, vnic)
 }
+
+func boolPtr(b bool) *bool { return &b }
 
 type EventCallback struct{}
 
@@ -67,9 +52,7 @@ func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotific
 
 	switch action {
 	case ifs.POST:
-		if event.EventId == "" {
-			event.EventId = ifs.NewUuid()
-		}
+		common.GenerateID(&event.EventId)
 		event.ReceivedAt = time.Now().Unix()
 		if event.OccurredAt == 0 {
 			event.OccurredAt = event.ReceivedAt
