@@ -18,11 +18,17 @@ type Converter struct {
 
 // New creates a Converter pre-loaded with all 16 built-in category parsers.
 func New() *Converter {
-	c := &Converter{
-		parsers: make(map[evt.EventCategory]Parser),
-	}
+	c := NewEmpty()
 	registerBuiltins(c)
 	return c
+}
+
+// NewEmpty creates a Converter with no parsers registered. Useful for building
+// a converter with a custom, non-default set of category parsers.
+func NewEmpty() *Converter {
+	return &Converter{
+		parsers: make(map[evt.EventCategory]Parser),
+	}
 }
 
 // Register adds or replaces a parser for the given category.

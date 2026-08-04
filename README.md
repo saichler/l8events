@@ -19,21 +19,22 @@ l8events/
 │   │   ├── l8events.pb.go             # Generated from l8events.proto
 │   │   └── l8events_categories.pb.go  # Generated from l8events_categories.proto
 │   ├── state/
-│   │   ├── state.go                   # Alarm state machine (transition validation)
-│   │   └── state_test.go
+│   │   └── state.go                   # Alarm state machine (transition validation)
 │   ├── archive/
-│   │   ├── archive.go                 # Generic archive engine
-│   │   └── archive_test.go
+│   │   └── archive.go                 # Generic archive engine
 │   ├── maintenance/
-│   │   ├── maintenance.go             # Maintenance window evaluator
-│   │   └── maintenance_test.go
-│   └── convert/
-│       ├── convert.go                 # Converter engine (Parser interface, dispatch)
-│       ├── helpers.go                 # Type conversion utilities
-│       ├── parsers_ops.go             # 9 parsers: Audit, System, Monitoring, Security, Integration, Performance, Syslog, Trap, Automation
-│       ├── parsers_infra.go           # 7 parsers: Network, Kubernetes, Compute, Storage, Power, GPU, Topology
-│       ├── builtins.go                # Built-in parser registration
-│       └── convert_test.go
+│   │   └── maintenance.go             # Maintenance window evaluator
+│   ├── convert/
+│   │   ├── convert.go                 # Converter engine (Parser interface, dispatch)
+│   │   ├── helpers.go                 # Type conversion utilities
+│   │   ├── parsers_ops.go             # 9 parsers: Audit, System, Monitoring, Security, Integration, Performance, Syslog, Trap, Automation
+│   │   ├── parsers_infra.go           # 7 parsers: Network, Kubernetes, Compute, Storage, Power, GPU, Topology
+│   │   └── builtins.go                # Built-in parser registration
+│   └── tests/                         # All Go tests (black-box, package-external)
+│       ├── state/state_test.go
+│       ├── archive/archive_test.go
+│       ├── maintenance/maintenance_test.go
+│       └── convert/convert_core_test.go, convert_ops_test.go, convert_infra_test.go
 └── l8ui/events/
     ├── l8events-enums.js              # Core enums (Severity, AlarmState, EventState, EventCategory, etc.)
     ├── l8events-category-enums.js     # Sub-category enums per EventCategory (15 enums + renderers)
@@ -976,12 +977,14 @@ To run tests directly (after vendoring):
 cd go && go test ./...
 ```
 
-| Package | Test File | What It Covers |
-|---------|-----------|----------------|
-| `state` | `state_test.go` | State transition validation, side effects (AcknowledgedBy, ClearedAt, etc.) |
-| `archive` | `archive_test.go` | Cascade archival flow, Store interface mock |
-| `maintenance` | `maintenance_test.go` | Window scope matching, time range evaluation |
-| `convert` | `convert_test.go` | Parser dispatch, attribute mapping, error handling |
+All tests live under `go/tests/`, one subdirectory per package, as black-box tests (`package xxx_test`) that exercise only the exported API.
+
+| Package Under Test | Test Location | What It Covers |
+|---------------------|----------------|----------------|
+| `state` | `go/tests/state/state_test.go` | State transition validation, side effects (AcknowledgedBy, ClearedAt, etc.) |
+| `archive` | `go/tests/archive/archive_test.go` | Cascade archival flow, Store interface mock |
+| `maintenance` | `go/tests/maintenance/maintenance_test.go` | Window scope matching, time range evaluation |
+| `convert` | `go/tests/convert/convert_core_test.go`, `convert_ops_test.go`, `convert_infra_test.go` | Parser dispatch, attribute mapping, error handling |
 
 ---
 

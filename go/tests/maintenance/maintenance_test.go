@@ -1,6 +1,7 @@
-package maintenance
+package maintenance_test
 
 import (
+	"github.com/saichler/l8events/go/maintenance"
 	evt "github.com/saichler/l8types/go/types/l8events"
 	"testing"
 	"time"
@@ -20,14 +21,14 @@ func activeWindow(id string, scopeIds, scopeTypes []string) *evt.MaintenanceWind
 }
 
 func TestIsSuppressed_NoWindows(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	if eval.IsSuppressed("node-1", "Router") {
 		t.Error("expected not suppressed with no windows loaded")
 	}
 }
 
 func TestIsSuppressed_GlobalWindow(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", nil, nil), // no scope = applies to everything
 	})
@@ -41,7 +42,7 @@ func TestIsSuppressed_GlobalWindow(t *testing.T) {
 }
 
 func TestIsSuppressed_ByEntityID(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", []string{"node-1", "node-2"}, nil),
 	})
@@ -58,7 +59,7 @@ func TestIsSuppressed_ByEntityID(t *testing.T) {
 }
 
 func TestIsSuppressed_ByEntityType(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", nil, []string{"Router"}),
 	})
@@ -73,7 +74,7 @@ func TestIsSuppressed_ByEntityType(t *testing.T) {
 
 func TestIsSuppressed_ExpiredWindow(t *testing.T) {
 	now := time.Now().Unix()
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		{
 			WindowId:  "w1",
@@ -90,7 +91,7 @@ func TestIsSuppressed_ExpiredWindow(t *testing.T) {
 
 func TestIsSuppressed_FutureWindow(t *testing.T) {
 	now := time.Now().Unix()
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		{
 			WindowId:  "w1",
@@ -107,7 +108,7 @@ func TestIsSuppressed_FutureWindow(t *testing.T) {
 
 func TestIsSuppressed_CompletedWindowIgnored(t *testing.T) {
 	now := time.Now().Unix()
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		{
 			WindowId:  "w1",
@@ -124,7 +125,7 @@ func TestIsSuppressed_CompletedWindowIgnored(t *testing.T) {
 
 func TestIsSuppressed_CancelledWindowIgnored(t *testing.T) {
 	now := time.Now().Unix()
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		{
 			WindowId:  "w1",
@@ -141,7 +142,7 @@ func TestIsSuppressed_CancelledWindowIgnored(t *testing.T) {
 
 func TestIsSuppressed_ScheduledWindowInRange(t *testing.T) {
 	now := time.Now().Unix()
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		{
 			WindowId:  "w1",
@@ -157,7 +158,7 @@ func TestIsSuppressed_ScheduledWindowInRange(t *testing.T) {
 }
 
 func TestGetActiveWindow_ReturnsWindow(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	w := activeWindow("w1", []string{"node-1"}, nil)
 	eval.LoadWindows([]*evt.MaintenanceWindow{w})
 
@@ -171,7 +172,7 @@ func TestGetActiveWindow_ReturnsWindow(t *testing.T) {
 }
 
 func TestGetActiveWindow_ReturnsNil(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", []string{"node-1"}, nil),
 	})
@@ -183,7 +184,7 @@ func TestGetActiveWindow_ReturnsNil(t *testing.T) {
 }
 
 func TestLoadWindows_ReplacesExisting(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", nil, nil),
 	})
@@ -198,7 +199,7 @@ func TestLoadWindows_ReplacesExisting(t *testing.T) {
 }
 
 func TestIsSuppressed_MultipleWindows(t *testing.T) {
-	eval := New()
+	eval := maintenance.New()
 	eval.LoadWindows([]*evt.MaintenanceWindow{
 		activeWindow("w1", []string{"node-1"}, nil),
 		activeWindow("w2", nil, []string{"Switch"}),

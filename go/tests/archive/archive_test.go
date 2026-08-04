@@ -1,12 +1,13 @@
-package archive
+package archive_test
 
 import (
 	"fmt"
+	"github.com/saichler/l8events/go/archive"
 	evt "github.com/saichler/l8types/go/types/l8events"
 	"testing"
 )
 
-// mockStore implements Store for testing.
+// mockStore implements archive.Store for testing.
 type mockStore struct {
 	alarms          map[string]*evt.AlarmRecord
 	events          map[string]*evt.EventRecord
@@ -82,7 +83,7 @@ func TestArchiveAlarm_Success(t *testing.T) {
 	store.events["e2"] = &evt.EventRecord{EventId: "e2", GeneratedAlarmId: "a1"}
 	store.eventsByAlarm["a1"] = []string{"e1", "e2"}
 
-	archiver := New(store)
+	archiver := archive.New(store)
 	info, err := archiver.ArchiveAlarm("a1", "admin", "resolved")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -122,7 +123,7 @@ func TestArchiveAlarm_Success(t *testing.T) {
 
 func TestArchiveAlarm_NotFound(t *testing.T) {
 	store := newMockStore()
-	archiver := New(store)
+	archiver := archive.New(store)
 	_, err := archiver.ArchiveAlarm("nonexistent", "admin", "")
 	if err == nil {
 		t.Error("expected error for nonexistent alarm")
@@ -132,7 +133,7 @@ func TestArchiveAlarm_NotFound(t *testing.T) {
 func TestArchiveAlarm_GetAlarmError(t *testing.T) {
 	store := newMockStore()
 	store.failGetAlarm = true
-	archiver := New(store)
+	archiver := archive.New(store)
 	_, err := archiver.ArchiveAlarm("a1", "admin", "")
 	if err == nil {
 		t.Error("expected error when GetAlarm fails")
@@ -143,7 +144,7 @@ func TestArchiveAlarm_SaveError(t *testing.T) {
 	store := newMockStore()
 	store.alarms["a1"] = &evt.AlarmRecord{AlarmId: "a1"}
 	store.failSaveAlarm = true
-	archiver := New(store)
+	archiver := archive.New(store)
 	_, err := archiver.ArchiveAlarm("a1", "admin", "")
 	if err == nil {
 		t.Error("expected error when SaveArchivedAlarm fails")
@@ -154,7 +155,7 @@ func TestArchiveAlarm_DeleteError(t *testing.T) {
 	store := newMockStore()
 	store.alarms["a1"] = &evt.AlarmRecord{AlarmId: "a1"}
 	store.failDeleteAlarm = true
-	archiver := New(store)
+	archiver := archive.New(store)
 	info, err := archiver.ArchiveAlarm("a1", "admin", "resolved")
 	// Should return info but also an error about delete failure
 	if info == nil {
@@ -168,7 +169,7 @@ func TestArchiveAlarm_DeleteError(t *testing.T) {
 func TestArchiveAlarm_NoEvents(t *testing.T) {
 	store := newMockStore()
 	store.alarms["a1"] = &evt.AlarmRecord{AlarmId: "a1"}
-	archiver := New(store)
+	archiver := archive.New(store)
 	info, err := archiver.ArchiveAlarm("a1", "admin", "cleanup")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -183,7 +184,7 @@ func TestArchiveAlarm_NoEvents(t *testing.T) {
 
 func TestArchiveEvent(t *testing.T) {
 	store := newMockStore()
-	archiver := New(store)
+	archiver := archive.New(store)
 	info, err := archiver.ArchiveEvent("e1", "admin", "cleanup")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
