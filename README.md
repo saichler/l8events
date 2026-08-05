@@ -1,6 +1,9 @@
 # l8events
 
-Shared event, alarm, and maintenance library for Layer 8 projects. Provides generic protobuf types, Go backend packages, and reusable l8ui components that any consumer project (l8alarms, l8erp, etc.) can import.
+Shared event, alarm, and maintenance library for Layer 8 projects. Provides generic protobuf types
+and Go backend packages that any consumer project (l8alarms, l8erp, etc.) can import. The
+matching UI components (enums, tables, detail views) ship as part of the `l8ui` library at
+`l8ui/events/` — see "l8ui Components" below.
 
 l8events depends only on `google.golang.org/protobuf`. It does **not** depend on l8orm, l8services, l8bus, l8web, l8notify, or any consumer project.
 
@@ -35,16 +38,7 @@ l8events/
 │       ├── archive/archive_test.go
 │       ├── maintenance/maintenance_test.go
 │       └── convert/convert_core_test.go, convert_ops_test.go, convert_infra_test.go
-└── l8ui/events/
-    ├── l8events-enums.js              # Core enums (Severity, AlarmState, EventState, EventCategory, etc.)
-    ├── l8events-category-enums.js     # Sub-category enums per EventCategory (15 enums + renderers)
-    ├── l8events-alarm-table.js        # Alarm table columns + form definition
-    ├── l8events-alarm-detail.js       # Alarm detail renderer (state history, notes)
-    ├── l8events-event-viewer.js       # Event table columns + form definition
-    ├── l8events-archive-viewer.js     # Archive table columns (alarm + event)
-    ├── l8events-maintenance.js        # Maintenance window columns + form definition
-    ├── l8events-state-actions.js      # Acknowledge/Clear/Suppress action buttons
-    └── l8events.css                   # Shared event/alarm styles (--layer8d-* tokens)
+└── (UI components live in the l8ui repo at l8ui/events/ — see "l8ui Components" below)
 ```
 
 ---
@@ -670,295 +664,19 @@ type Parser interface {
 
 ## l8ui Components
 
-Reusable UI components in `l8ui/events/`. Consumer projects copy these into their own `l8ui/events/` directory.
+These components ship as part of the `l8ui` library at `l8ui/events/`, used identically on both
+desktop and mobile — no per-platform variant, no separate mobile build. Add `l8ui` to your project
+via `setup-l8ui-submodule.sh` (see `l8ui-copy-to-new-project.md`) and they're available
+automatically; there is no separate copy step for l8events specifically.
 
-**Prerequisites:** These components depend on the l8ui shared library globals:
-- `Layer8DRenderers` (provides `createStatusRenderer`, `renderEnum`)
-- `Layer8EnumFactory` (provides `create()`)
-- `Layer8ColumnFactory` (provides `col`, `status`, `enum`, `date`, `number`)
-- `Layer8FormFactory` (provides `form`, `section`, `text`, `textarea`, `select`, `date`, `number`)
+**Prerequisites:** these components depend on l8ui shared library globals (all loaded on both
+desktop and mobile pages): `Layer8DRenderers`, `Layer8EnumFactory`, `Layer8ColumnFactory`,
+`Layer8FormFactory`.
 
-### Script Loading Order
-
-```html
-<!-- In app.html — after l8ui shared scripts, before module scripts -->
-<link rel="stylesheet" href="l8ui/events/l8events.css">
-<script src="l8ui/events/l8events-enums.js"></script>              <!-- Must be first (others depend on it) -->
-<script src="l8ui/events/l8events-category-enums.js"></script>     <!-- Sub-category enums (depends on enums) -->
-<script src="l8ui/events/l8events-state-actions.js"></script>      <!-- Before alarm-detail (detail uses it) -->
-<script src="l8ui/events/l8events-alarm-table.js"></script>
-<script src="l8ui/events/l8events-alarm-detail.js"></script>
-<script src="l8ui/events/l8events-event-viewer.js"></script>
-<script src="l8ui/events/l8events-archive-viewer.js"></script>
-<script src="l8ui/events/l8events-maintenance.js"></script>
-```
-
-### `window.L8EventsEnums`
-
-Shared enum maps and renderers. All other l8events UI components depend on this.
-
-**Enum maps** (for `f.select()` and column definitions):
-- `L8EventsEnums.SEVERITY` — `{ enum: { 0: 'Unspecified', 1: 'Info', ... 5: 'Critical' } }`
-- `L8EventsEnums.ALARM_STATE` — `{ enum: { 0: 'Unspecified', 1: 'Active', ... 4: 'Suppressed' } }`
-- `L8EventsEnums.EVENT_STATE` — `{ enum: { 0: 'Unspecified', 1: 'New', ... 4: 'Archived' } }`
-- `L8EventsEnums.EVENT_CATEGORY` — `{ enum: { 0: 'Unspecified', 1: 'Audit', ... 17: 'Automation' } }`
-- `L8EventsEnums.MAINTENANCE_STATUS` — `{ enum: { 0: 'Unspecified', 1: 'Scheduled', ... 4: 'Cancelled' } }`
-- `L8EventsEnums.RECURRENCE_TYPE` — `{ enum: { 0: 'Unspecified', 1: 'None', ... 4: 'Monthly' } }`
-
-**Renderers** (for `col.status()` / `col.enum()` 4th argument):
-- `L8EventsEnums.render.severity` — colored status badge (Critical=red, Major/Minor=warning, Warning=blue, Info=muted)
-- `L8EventsEnums.render.alarmState` — colored status badge (Active=red, Acknowledged=blue, Cleared=green, Suppressed=muted)
-- `L8EventsEnums.render.eventState` — colored status badge (New=blue, Processed=green, Discarded/Archived=muted)
-- `L8EventsEnums.render.eventCategory` — plain enum text label
-- `L8EventsEnums.render.maintenanceStatus` — colored status badge (Scheduled=blue, Active=warning, Completed=green, Cancelled=muted)
-- `L8EventsEnums.render.recurrenceType` — plain enum text label
-
-**Usage in consumer column definitions:**
-```javascript
-// Use shared renderers in your module's *-columns.js
-...col.status('severity', 'Severity', null, L8EventsEnums.render.severity),
-...col.status('state', 'State', null, L8EventsEnums.render.alarmState),
-
-// Use shared enums in your module's *-forms.js
-...f.select('severity', 'Severity', L8EventsEnums.SEVERITY),
-...f.select('state', 'State', L8EventsEnums.ALARM_STATE),
-```
-
-### `window.L8EventsCategoryEnums`
-
-Sub-category enum maps and renderers for each `EventCategory`. Loaded from `l8events-category-enums.js`.
-
-**Enum maps** (for `f.select()` in category-specific forms):
-- `L8EventsCategoryEnums.AUDIT_EVENT_TYPE` — Create, Update, Delete, Login, Logout, Config Change, Permission Change, Export, Import
-- `L8EventsCategoryEnums.SYSTEM_EVENT_TYPE` — Service Start/Stop, Health Check, Config Reload, License, Error, Upgrade, Backup, Restore
-- `L8EventsCategoryEnums.MONITORING_EVENT_TYPE` — Poll Success/Failure, Target Unreachable/Recovered, Data Stale, Collection Start/Complete, Parse Error
-- `L8EventsCategoryEnums.SECURITY_EVENT_TYPE` — Auth Success/Failure, Access Denied, Privilege Escalation, Cert Expiry/Renewed, Policy Violation, Brute Force, Token Revoked
-- `L8EventsCategoryEnums.INTEGRATION_EVENT_TYPE` — API Call Success/Failure, Webhook Received/Failed, Sync Start/Complete/Failed, Connector Up/Down
-- `L8EventsCategoryEnums.NETWORK_EVENT_TYPE` — Device Status, Interface, BGP, OSPF, MPLS, LDP, Segment Routing, Traffic Engineering, VRF, QoS, Hardware
-- `L8EventsCategoryEnums.KUBERNETES_EVENT_TYPE` — Pod, Node, Deployment, StatefulSet, DaemonSet, Service, Namespace, Network Policy
-- `L8EventsCategoryEnums.PERFORMANCE_METRIC` — CPU, Memory, Temperature, Traffic, Disk, Fan Speed, Power Load, Voltage, Latency, Packet Loss
-- `L8EventsCategoryEnums.THRESHOLD_TYPE` — Upper, Lower
-- `L8EventsCategoryEnums.COMPUTE_EVENT_TYPE` — Hypervisor Status, VM Status/Migration/Resource, Host Resource
-- `L8EventsCategoryEnums.STORAGE_EVENT_TYPE` — Array Status, Volume Status, Capacity, Replication, Disk, Controller
-- `L8EventsCategoryEnums.POWER_EVENT_TYPE` — PSU/PDU/UPS Status, Battery, Load, Voltage, Temperature
-- `L8EventsCategoryEnums.GPU_EVENT_TYPE` — Status, Temperature, Memory, Utilization, Error, Power
-- `L8EventsCategoryEnums.TOPOLOGY_EVENT_TYPE` — Link Discovered/Lost, Neighbor Change, Topology Change
-- `L8EventsCategoryEnums.AUTOMATION_EVENT_TYPE` — Rule Triggered/Completed/Failed, Policy Violation, Remediation
-
-**Renderers** (colored status badges for enums with status semantics, plain text for others):
-- `L8EventsCategoryEnums.render.systemEventType` — colored (Start=green, Stop=red, Error=red, etc.)
-- `L8EventsCategoryEnums.render.monitoringEventType` — colored (Poll Success=green, Failure=red, etc.)
-- `L8EventsCategoryEnums.render.securityEventType` — colored (Auth Success=green, Auth Failure=red, etc.)
-- `L8EventsCategoryEnums.render.integrationEventType` — colored (API Success=green, Failure=red, etc.)
-- `L8EventsCategoryEnums.render.automationEventType` — colored (Completed=green, Failed=red, etc.)
-- All others: plain enum text renderers (no color classes)
-
-**Usage:**
-```javascript
-// In category-specific column definitions
-...col.status('subCategory', 'Sub-type', null, L8EventsCategoryEnums.render.systemEventType),
-...col.enum('subCategory', 'Sub-type', null, L8EventsCategoryEnums.render.networkEventType),
-
-// In category-specific form definitions
-...f.select('subCategory', 'Event Type', L8EventsCategoryEnums.NETWORK_EVENT_TYPE),
-```
-
-### `window.L8EventsAlarmTable`
-
-Provides reusable column and form definitions for alarm tables.
-
-**`L8EventsAlarmTable.getColumns()`** — Returns column array:
-
-| Key | Label | Type |
-|-----|-------|------|
-| `severity` | Severity | status badge |
-| `name` | Name | text |
-| `sourceName` | Source | text |
-| `state` | State | status badge |
-| `firstOccurrence` | First Occurrence | date |
-| `lastOccurrence` | Last Occurrence | date |
-| `occurrenceCount` | Count | number |
-| `acknowledgedBy` | Acknowledged By | text |
-
-**`L8EventsAlarmTable.getFormDefinition()`** — Returns form definition with sections:
-- **Alarm Information**: alarmId, name, description, severity (select), state (select), definitionId
-- **Source**: sourceId, sourceName, sourceType
-- **Timing**: firstOccurrence, lastOccurrence, occurrenceCount
-- **Acknowledgement**: acknowledgedBy, acknowledgedAt, clearedBy, clearedAt
-
-**Usage in consumer:**
-```javascript
-// In your module's *-columns.js — use directly or merge with domain columns
-MyModule.columns = {
-    MyAlarmModel: L8EventsAlarmTable.getColumns()
-};
-
-// Or merge with domain-specific columns
-MyModule.columns = {
-    MyAlarmModel: [
-        ...L8EventsAlarmTable.getColumns(),
-        ...col.col('nodeId', 'Node'),  // domain-specific
-    ]
-};
-
-// In your module's *-forms.js
-MyModule.forms = {
-    MyAlarmModel: L8EventsAlarmTable.getFormDefinition()
-};
-```
-
-### `window.L8EventsAlarmDetail`
-
-Renders a complete alarm detail view inside a container element. Includes fields display, state history timeline, notes, and optional state action buttons.
-
-**`L8EventsAlarmDetail.render(container, alarm, options)`**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `container` | DOM Element | Target element to render into |
-| `alarm` | object | AlarmRecord object (JSON from server) |
-| `options.showStateHistory` | boolean | Show state history timeline (default: true) |
-| `options.showNotes` | boolean | Show notes section (default: true) |
-| `options.onStateChange` | function | Callback `(alarmId, newState, reason)` — if provided, renders action buttons |
-
-**What it renders:**
-1. Alarm fields grid: severity badge, state badge, name, source, occurrence count
-2. State history timeline (reverse chronological): each entry shows `FromState -> ToState`, who changed it, when, and reason
-3. Notes list (reverse chronological): author, date, text
-4. State action buttons (if `onStateChange` callback provided): delegates to `L8EventsStateActions`
-
-**Usage:**
-```javascript
-// In a popup's onShow callback
-L8EventsAlarmDetail.render(popupBody, alarm, {
-    showStateHistory: true,
-    showNotes: true,
-    onStateChange: (alarmId, newState, reason) => {
-        // POST state change to your alarm service endpoint
-        fetch(`/myprefix/${serviceArea}/MyAlarmSvc`, {
-            method: 'PUT',
-            headers: getHeaders(),
-            body: JSON.stringify({ alarmId, state: newState })
-        });
-    }
-});
-```
-
-### `window.L8EventsEventViewer`
-
-Provides column and form definitions for read-only event log tables.
-
-**`L8EventsEventViewer.getColumns()`** — Returns column array:
-
-| Key | Label | Type |
-|-----|-------|------|
-| `occurredAt` | Timestamp | date |
-| `category` | Category | enum (plain text) |
-| `eventType` | Type | text |
-| `severity` | Severity | status badge |
-| `sourceName` | Source | text |
-| `message` | Message | text |
-| `state` | State | status badge |
-
-**`L8EventsEventViewer.getFormDefinition()`** — Returns form definition with sections:
-- **Event Information**: eventId, category (select), eventType, severity (select), state (select)
-- **Source**: sourceId, sourceName, sourceType
-- **Content**: message (textarea)
-- **Timing**: occurredAt, receivedAt, processedAt
-
-### `window.L8EventsArchiveViewer`
-
-Provides column definitions for archived alarm and event tables. Extends the base columns with archive-specific fields.
-
-**`L8EventsArchiveViewer.getArchivedAlarmColumns()`** — Returns column array:
-
-| Key | Label | Type |
-|-----|-------|------|
-| `severity` | Severity | status badge |
-| `name` | Name | text |
-| `sourceName` | Source | text |
-| `state` | State | status badge |
-| `firstOccurrence` | First Occurrence | date |
-| `clearedAt` | Cleared At | date |
-| `archivedAt` | Archived At | date |
-| `archivedBy` | Archived By | text |
-| `archiveReason` | Reason | text |
-
-**`L8EventsArchiveViewer.getArchivedEventColumns()`** — Returns column array:
-
-| Key | Label | Type |
-|-----|-------|------|
-| `occurredAt` | Timestamp | date |
-| `category` | Category | enum |
-| `eventType` | Type | text |
-| `severity` | Severity | status badge |
-| `sourceName` | Source | text |
-| `message` | Message | text |
-| `archivedAt` | Archived At | date |
-| `archivedBy` | Archived By | text |
-
-### `window.L8EventsMaintenance`
-
-Provides column and form definitions for maintenance window tables and create/edit forms.
-
-**`L8EventsMaintenance.getColumns()`** — Returns column array:
-
-| Key | Label | Type |
-|-----|-------|------|
-| `name` | Name | text |
-| `status` | Status | status badge |
-| `startTime` | Start Time | date |
-| `endTime` | End Time | date |
-| `recurrence` | Recurrence | enum (plain text) |
-| `createdBy` | Created By | text |
-| `createdAt` | Created At | date |
-
-**`L8EventsMaintenance.getFormDefinition()`** — Returns form definition with sections:
-- **Details**: name (required), description, status (select)
-- **Schedule**: startTime (required), endTime (required), recurrence (select), recurrenceInterval
-- **Scope**: scopeIds (comma-separated text), scopeTypes (comma-separated text)
-
-### `window.L8EventsStateActions`
-
-Renders Acknowledge/Clear/Suppress/Reactivate action buttons based on the alarm's current state.
-
-**`L8EventsStateActions.render(container, alarm, onAction)`**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `container` | DOM Element | Target element to render buttons into |
-| `alarm` | object | AlarmRecord object — reads `alarm.state` and `alarm.alarmId` |
-| `onAction` | function | Callback `(alarmId, newState, reason)` called when a button is clicked |
-
-**`L8EventsStateActions.getAvailableActions(currentState)`** — Returns array of action objects:
-
-| Current State | Available Actions |
-|---------------|-------------------|
-| 1 (ACTIVE) | Acknowledge (->2), Clear (->3), Suppress (->4) |
-| 2 (ACKNOWLEDGED) | Clear (->3), Suppress (->4) |
-| 4 (SUPPRESSED) | Reactivate (->1), Acknowledge (->2), Clear (->3) |
-| 3 (CLEARED) | (none — terminal state) |
-
-Each action object: `{ state: <int>, label: <string>, className: <string> }`
-
-**Button CSS classes:**
-- `.l8events-action-acknowledge` — primary color
-- `.l8events-action-clear` — success/green
-- `.l8events-action-suppress` — light/muted
-- `.l8events-action-reactivate` — warning/orange
-
-### `l8events.css`
-
-All styles use `--layer8d-*` theme tokens exclusively. No hardcoded colors, no `[data-theme="dark"]` blocks. Dark mode works automatically through the l8ui theme system.
-
-**CSS class prefixes:**
-- `.l8events-severity-*` — severity badge colors
-- `.l8events-detail-*` — detail popup layout (section, grid, field)
-- `.l8events-timeline-*` — state history timeline (entry, dot, content, transition, meta, reason)
-- `.l8events-note-*` — notes section (header, author, date, text)
-- `.l8events-state-actions` — action button container
-- `.l8events-action-*` — individual action button colors
-- `.l8events-maintenance-active` — maintenance window highlight
+Full API reference (script loading order, every exported global —
+`L8EventsEnums`, `L8EventsCategoryEnums`, `L8EventsAlarmTable`, `L8EventsAlarmDetail`,
+`L8EventsEventViewer`, `L8EventsArchiveViewer`, `L8EventsMaintenance`, `L8EventsStateActions`) now
+lives in `l8ui`'s own docs: `l8ui/rules/l8events-ui.md`.
 
 ---
 
@@ -1009,6 +727,8 @@ require github.com/saichler/l8events/go v0.0.0-<latest>
 
 ### l8ui Components
 
-1. Copy `l8ui/events/` into your project's web directory: `cp -r l8events/l8ui/events/ <project>/go/<app>/ui/web/l8ui/events/`
-2. Add script includes to `app.html` (see loading order above)
+1. Add `l8ui` as a submodule under your project's web directory (`setup-l8ui-submodule.sh`, see
+   `l8ui-copy-to-new-project.md`) — `l8ui/events/` comes with it, no separate copy step
+2. Add the script includes to both `app.html` and `m/app.html` (same include list for both —
+   see `l8ui/rules/l8events-ui.md` for the loading order)
 3. Use the shared columns/forms/renderers in your module's definition files

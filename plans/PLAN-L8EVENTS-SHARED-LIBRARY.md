@@ -1,5 +1,12 @@
 # L8Events — Shared Event, Alarm & Audit Library
 
+> **Superseded (l8ui Components section only):** the `l8ui/events/` copy-distribution model
+> described below (`l8events/l8ui/events/`, copied per-consumer into `<project>/.../l8ui/events/`)
+> has been replaced. These UI components now live directly in the canonical `l8ui` library at
+> `l8ui/events/`, used unforked on both desktop and mobile — see
+> `PLAN-MOVE-L8UI-EVENTS-TO-L8UI.md` and `l8ui/rules/l8events-ui.md`. The Go backend sections of
+> this document are unaffected and remain current.
+
 ## Purpose
 
 Extract the generic event/alarm/archive/maintenance infrastructure from l8alarms into a shared library (`l8events`) that any Layer 8 project can consume. This provides every project with audit events, system events, alarm lifecycle management, archiving, and maintenance windows — without duplicating the l8alarms codebase.
