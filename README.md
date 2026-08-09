@@ -25,8 +25,6 @@ l8events/
 │   │   └── state.go                   # Alarm state machine (transition validation)
 │   ├── archive/
 │   │   └── archive.go                 # Generic archive engine
-│   ├── maintenance/
-│   │   └── maintenance.go             # Maintenance window evaluator
 │   ├── convert/
 │   │   ├── convert.go                 # Converter engine (Parser interface, dispatch)
 │   │   ├── helpers.go                 # Type conversion utilities
@@ -36,7 +34,6 @@ l8events/
 │   └── tests/                         # All Go tests (black-box, package-external)
 │       ├── state/state_test.go
 │       ├── archive/archive_test.go
-│       ├── maintenance/maintenance_test.go
 │       └── convert/convert_core_test.go, convert_ops_test.go, convert_infra_test.go
 └── (UI components live in the l8ui repo at l8ui/events/ — see "l8ui Components" below)
 ```
@@ -566,34 +563,6 @@ info, err := archiver.ArchiveEvent("event-456", "admin", "cleanup")
 // ArchiveEvent: creates ArchiveInfo only — consumer orchestrates the full flow for standalone events
 ```
 
-### `maintenance` — Maintenance Window Evaluator
-
-Thread-safe evaluator that checks whether an entity is covered by an active maintenance window. Uses `sync.RWMutex` for concurrent access.
-
-```go
-import "github.com/saichler/l8events/go/maintenance"
-
-eval := maintenance.New()
-
-// Load/replace active windows (call on startup and when windows change)
-eval.LoadWindows(activeWindows)
-
-// Check if an entity is suppressed (by ID or type match)
-if eval.IsSuppressed("node-456", "Router") {
-    // Skip alarm creation or suppress notification
-}
-
-// Get the specific active window covering an entity
-window := eval.GetActiveWindow("node-456", "Router")
-```
-
-**Scope matching logic:**
-- If a window has no `ScopeIds` and no `ScopeTypes`, it applies to everything
-- If `entityID` matches any entry in `window.ScopeIds`, the entity is covered
-- If `entityType` matches any entry in `window.ScopeTypes`, the entity is covered
-- Only windows with status ACTIVE or SCHEDULED are evaluated
-- Only windows where `now` is between `StartTime` and `EndTime` are evaluated
-
 ### `convert` — Event Record Conversion Engine
 
 Converts generic `EventRecord` instances (with data in `Attributes` map) into typed category-specific protobuf structs. Pre-loaded with all 16 built-in parsers. Supports custom parser registration.
@@ -682,13 +651,13 @@ lives in `l8ui`'s own docs: `l8ui/rules/l8events-ui.md`.
 
 ## Testing
 
-All four Go packages have unit tests. Run the full suite with coverage:
+All three Go packages have unit tests. Run the full suite with coverage:
 
 ```bash
 cd go && ./test.sh
 ```
 
-This script rebuilds dependencies from scratch, runs all tests with coverage across `state`, `archive`, `maintenance`, and `convert`, and opens the coverage report in a browser.
+This script rebuilds dependencies from scratch, runs all tests with coverage across `state`, `archive`, and `convert`, and opens the coverage report in a browser.
 
 To run tests directly (after vendoring):
 ```bash
@@ -701,7 +670,6 @@ All tests live under `go/tests/`, one subdirectory per package, as black-box tes
 |---------------------|----------------|----------------|
 | `state` | `go/tests/state/state_test.go` | State transition validation, side effects (AcknowledgedBy, ClearedAt, etc.) |
 | `archive` | `go/tests/archive/archive_test.go` | Cascade archival flow, Store interface mock |
-| `maintenance` | `go/tests/maintenance/maintenance_test.go` | Window scope matching, time range evaluation |
 | `convert` | `go/tests/convert/convert_core_test.go`, `convert_ops_test.go`, `convert_infra_test.go` | Parser dispatch, attribute mapping, error handling |
 
 ---
@@ -714,7 +682,6 @@ All tests live under `go/tests/`, one subdirectory per package, as black-box tes
 import (
     "github.com/saichler/l8events/go/state"
     "github.com/saichler/l8events/go/archive"
-    "github.com/saichler/l8events/go/maintenance"
     "github.com/saichler/l8events/go/convert"
     evt "github.com/saichler/l8events/go/types/l8events"
 )
