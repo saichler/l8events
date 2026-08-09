@@ -21,20 +21,9 @@ l8events/
 │   ├── types/l8events/
 │   │   ├── l8events.pb.go             # Generated from l8events.proto
 │   │   └── l8events_categories.pb.go  # Generated from l8events_categories.proto
-│   ├── state/
-│   │   └── state.go                   # Alarm state machine (transition validation)
-│   ├── archive/
-│   │   └── archive.go                 # Generic archive engine
-│   ├── convert/
-│   │   ├── convert.go                 # Converter engine (Parser interface, dispatch)
-│   │   ├── helpers.go                 # Type conversion utilities
-│   │   ├── parsers_ops.go             # 9 parsers: Audit, System, Monitoring, Security, Integration, Performance, Syslog, Trap, Automation
-│   │   ├── parsers_infra.go           # 7 parsers: Network, Kubernetes, Compute, Storage, Power, GPU, Topology
-│   │   └── builtins.go                # Built-in parser registration
-│   └── tests/                         # All Go tests (black-box, package-external)
-│       ├── state/state_test.go
-│       ├── archive/archive_test.go
-│       └── convert/convert_core_test.go, convert_ops_test.go, convert_infra_test.go
+│   ├── services/
+│   │   └── EventService.go            # Events service (ActivateEvents) — the only wired backend feature
+│   └── tests/                         # Go tests (black-box, package-external)
 └── (UI components live in the l8ui repo at l8ui/events/ — see "l8ui Components" below)
 ```
 
@@ -501,133 +490,23 @@ All category event messages share common fields: `eventId`, `propertyId`, `sourc
 
 ## Go Packages
 
-### `state` — Alarm State Machine
+### `services` — Events Service
 
-Validates and enforces alarm state transitions. CLEARED is terminal (no transitions out).
-
-```go
-import "github.com/saichler/l8events/go/state"
-import evt "github.com/saichler/l8events/go/types/l8events"
-
-// Check if a transition is valid
-state.ValidTransition(evt.AlarmState_ALARM_STATE_ACTIVE, evt.AlarmState_ALARM_STATE_ACKNOWLEDGED) // true
-state.ValidTransition(evt.AlarmState_ALARM_STATE_CLEARED, evt.AlarmState_ALARM_STATE_ACTIVE)       // false
-
-// Apply a state transition (updates alarm.State, appends to alarm.StateHistory,
-// and sets fields like AcknowledgedBy/AcknowledgedAt based on target state)
-err := state.Transition(alarm, evt.AlarmState_ALARM_STATE_ACKNOWLEDGED, "admin", "investigating")
-
-// Convenience functions (call Transition internally)
-err := state.Acknowledge(alarm, "admin")
-err := state.Clear(alarm, "system")
-err := state.Suppress(alarm, "maintenance-window-1")
-```
-
-**Valid transitions:**
-| From | To |
-|------|-----|
-| ACTIVE | ACKNOWLEDGED, CLEARED, SUPPRESSED |
-| ACKNOWLEDGED | ACTIVE, CLEARED, SUPPRESSED |
-| SUPPRESSED | ACTIVE, ACKNOWLEDGED, CLEARED |
-| CLEARED | (terminal — no transitions) |
-
-**Side effects of `Transition()`:**
-- Appends an `AlarmStateChange` entry to `alarm.StateHistory`
-- ACKNOWLEDGED: sets `alarm.AcknowledgedBy` and `alarm.AcknowledgedAt`
-- CLEARED: sets `alarm.ClearedBy` and `alarm.ClearedAt`
-- SUPPRESSED: sets `alarm.IsSuppressed = true` and `alarm.SuppressedBy`
-- ACTIVE (reactivate): sets `alarm.IsSuppressed = false` and clears `alarm.SuppressedBy`
-
-### `archive` — Archive Engine
-
-Generic archive engine. Consumers provide a `Store` interface implementation for persistence.
+The only wired backend feature. `ActivateEvents` registers the `Events` service (name `Events`,
+area `76`) on a `vnic`, backed by `EventCallback` (`ifs.IServiceCallback`). This is what
+`ifs.IEvents` (implemented in `l8utils/go/utils/events`) talks to via `vnic.Unicast(...)`.
 
 ```go
-import "github.com/saichler/l8events/go/archive"
+import (
+    evtservices "github.com/saichler/l8events/go/services"
+)
 
-// Implement the Store interface
-type myStore struct { /* ... */ }
-func (s *myStore) GetAlarm(alarmID string) (*evt.AlarmRecord, error) { /* ... */ }
-func (s *myStore) SaveArchivedAlarm(alarm *evt.AlarmRecord, info *evt.ArchiveInfo) error { /* ... */ }
-func (s *myStore) DeleteAlarm(alarmID string) error { /* ... */ }
-func (s *myStore) GetEventsByAlarm(alarmID string) ([]*evt.EventRecord, error) { /* ... */ }
-func (s *myStore) SaveArchivedEvent(event *evt.EventRecord, info *evt.ArchiveInfo) error { /* ... */ }
-func (s *myStore) DeleteEvent(eventID string) error { /* ... */ }
-
-// Create archiver and archive
-archiver := archive.New(&myStore{})
-info, err := archiver.ArchiveAlarm("alarm-123", "admin", "resolved")
-// ArchiveAlarm: fetches alarm, saves archived copy, archives all associated events, deletes originals
-
-info, err := archiver.ArchiveEvent("event-456", "admin", "cleanup")
-// ArchiveEvent: creates ArchiveInfo only — consumer orchestrates the full flow for standalone events
+evtservices.ActivateEvents(dbcred, dbname, nic)
 ```
 
-### `convert` — Event Record Conversion Engine
-
-Converts generic `EventRecord` instances (with data in `Attributes` map) into typed category-specific protobuf structs. Pre-loaded with all 16 built-in parsers. Supports custom parser registration.
-
-```go
-import "github.com/saichler/l8events/go/convert"
-import evt "github.com/saichler/l8events/go/types/l8events"
-
-// Create a converter (pre-loaded with all 16 category parsers)
-conv := convert.New()
-
-// Convert an EventRecord to its typed category struct
-record := &evt.EventRecord{
-    EventId:    "evt-001",
-    Category:   evt.EventCategory_EVENT_CATEGORY_NETWORK,
-    SourceId:   "switch-01",
-    SourceType: "switch",
-    Message:    "Interface down",
-    Attributes: map[string]string{
-        "propertyId":    "prop-1",
-        "subCategory":   "2",
-        "deviceName":    "core-sw-01",
-        "deviceIp":      "10.1.1.1",
-        "componentId":   "Gi0/1",
-        "previousState": "up",
-        "currentState":  "down",
-    },
-}
-
-msg, err := conv.Convert(record)
-// msg is a proto.Message — type-assert to the expected category struct
-netEvent := msg.(*evt.NetworkEvent)
-// netEvent.DeviceName == "core-sw-01"
-// netEvent.SubCategory == NetworkEventType(2)
-```
-
-**Convert() behavior:**
-| Input | Result |
-|-------|--------|
-| `nil` record | error |
-| UNSPECIFIED category | error |
-| CUSTOM category | `(nil, nil)` — no struct for custom events |
-| Unregistered category | error |
-| Valid category | typed `proto.Message` |
-
-**Field mapping:**
-- Common fields (`EventId`, `PropertyId`, `SourceId`, `SourceType`, `Message`) are copied from the record's top-level fields and `Attributes["propertyId"]`
-- `SubCategory` is parsed from `Attributes["subCategory"]` as int32 (15 of 16 parsers — SyslogEvent has no SubCategory)
-- Domain fields are parsed from `Attributes[camelCaseFieldName]` with type conversion (string, int32, int64, float64, bool)
-- `TrapEvent.Varbinds` collects all attributes with prefix `varbinds.` into a map (e.g., `varbinds.1.3.6.1` → key `1.3.6.1`)
-
-**Error strategy:** Lenient — missing attributes yield zero values (no error). Malformed numeric/bool strings return an error.
-
-**Custom parser registration:**
-```go
-// Replace a built-in parser or register a new one
-conv.Register(evt.EventCategory_EVENT_CATEGORY_AUDIT, &myCustomAuditParser{})
-```
-
-The `Parser` interface:
-```go
-type Parser interface {
-    Parse(record *evt.EventRecord) (proto.Message, error)
-}
-```
+**On POST**, `EventCallback.Before` auto-generates `EventId`, stamps `ReceivedAt` (and `OccurredAt`
+if unset), and defaults `State` to `EVENT_STATE_NEW` before the record is persisted as-is.
+`EventRecord`s are immutable — PUT is rejected.
 
 ---
 
@@ -651,26 +530,21 @@ lives in `l8ui`'s own docs: `l8ui/rules/l8events-ui.md`.
 
 ## Testing
 
-All three Go packages have unit tests. Run the full suite with coverage:
-
 ```bash
 cd go && ./test.sh
 ```
 
-This script rebuilds dependencies from scratch, runs all tests with coverage across `state`, `archive`, and `convert`, and opens the coverage report in a browser.
+This script rebuilds dependencies from scratch and runs `go test` with coverage across `./services/...`.
 
 To run tests directly (after vendoring):
 ```bash
 cd go && go test ./...
 ```
 
-All tests live under `go/tests/`, one subdirectory per package, as black-box tests (`package xxx_test`) that exercise only the exported API.
-
-| Package Under Test | Test Location | What It Covers |
-|---------------------|----------------|----------------|
-| `state` | `go/tests/state/state_test.go` | State transition validation, side effects (AcknowledgedBy, ClearedAt, etc.) |
-| `archive` | `go/tests/archive/archive_test.go` | Cascade archival flow, Store interface mock |
-| `convert` | `go/tests/convert/convert_core_test.go`, `convert_ops_test.go`, `convert_infra_test.go` | Parser dispatch, attribute mapping, error handling |
+Tests live under `go/tests/`, one subdirectory per package, as black-box tests (`package xxx_test`)
+that exercise only the exported API. There are currently no tests for `services` — the `Events`
+service is exercised end-to-end by consumer projects that call `ActivateEvents` and post through
+`ifs.IEvents`, but this repo has no test of its own yet.
 
 ---
 
@@ -680,11 +554,15 @@ All tests live under `go/tests/`, one subdirectory per package, as black-box tes
 
 ```go
 import (
-    "github.com/saichler/l8events/go/state"
-    "github.com/saichler/l8events/go/archive"
-    "github.com/saichler/l8events/go/convert"
+    evtservices "github.com/saichler/l8events/go/services"
     evt "github.com/saichler/l8events/go/types/l8events"
 )
+
+// In main.go, after activating your other services:
+evtservices.ActivateEvents(dbcred, dbname, nic)
+
+// Anywhere with access to resources.Events() (ifs.IEvents):
+resources.Events().PostNetworkEvent(&evt.NetworkEvent{ /* ... */ })
 ```
 
 Add to `go.mod`:
