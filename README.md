@@ -1,48 +1,51 @@
 # l8events
 
-Shared event, alarm, and maintenance library for Layer 8 projects. Provides generic protobuf types
-and Go backend packages that any consumer project (l8alarms, l8erp, etc.) can import. The
-matching UI components (enums, tables, detail views) ship as part of the `l8ui` library at
-`l8ui/events/` — see "l8ui Components" below.
+Event recording **system service** for Layer 8 projects. It provides one backend service — `Events`
+(ServiceArea 76, `EventRecord`) — an immutable, ORM-backed event log that any service in the ecosystem posts to via
+`vnic.Resources().Events().PostXxxEvent(...)`.
 
-l8events depends only on `google.golang.org/protobuf`. It does **not** depend on l8orm, l8services, l8bus, l8web, l8notify, or any consumer project.
+**l8events is required infrastructure in every Layer 8 project**, together with `l8notify`. Projects
+never keep their own event/audit-log tables — all events go through the `Events` service.
+
+Like `l8notify`, l8events has no `main.go`, Dockerfile, or k8s manifests of its own. The `Events` service is
+**activated by `l8common`** on behalf of every project — projects never call `ActivateEvents` themselves. The
+rest of the pieces live in the shared framework repos:
+
+| Piece | Location |
+|-------|----------|
+| Proto definitions | `l8types/proto/l8events.proto`, `l8types/proto/l8events_categories.proto` |
+| Generated Go types | `github.com/saichler/l8types/go/types/l8events` |
+| `IEvents` interface / `Resources().Events()` | `l8types/go/ifs/Events.go`, `l8types/go/ifs/Resources.go` |
+| Default `IEvents` impl + category-to-`EventRecord` conversion | `l8utils/go/utils/events/` |
+| UI components | `l8ui/events/` (see `l8ui/rules/l8events-ui.md`) |
 
 ## Directory Structure
 
 ```
 l8events/
-├── proto/
-│   ├── l8events.proto                 # Core types (EventRecord, AlarmRecord, MaintenanceWindow, enums)
-│   ├── l8events_categories.proto      # 16 category event messages + sub-category enums
-│   └── make-bindings.sh               # Generates Go bindings
 ├── go/
-│   ├── go.mod
-│   ├── test.sh                        # Runs all tests with coverage
-│   ├── types/l8events/
-│   │   ├── l8events.pb.go             # Generated from l8events.proto
-│   │   └── l8events_categories.pb.go  # Generated from l8events_categories.proto
-│   ├── services/
-│   │   └── EventService.go            # Events service (ActivateEvents) — the only wired backend feature
-│   └── tests/                         # Go tests (black-box, package-external)
-└── (UI components live in the l8ui repo at l8ui/events/ — see "l8ui Components" below)
+│   ├── go.mod                         # Local only (untracked) — published module is github.com/saichler/l8events
+│   ├── test.sh                        # Rebuilds deps and runs tests with coverage
+│   ├── vendor.sh
+│   └── services/
+│       └── EventService.go            # ActivateEvents() — the Events service
+└── plans/                             # Implementation plans
 ```
 
 ---
 
 ## Protobuf Types
 
-Defined in `proto/l8events.proto` (core types) and `proto/l8events_categories.proto` (16 category event messages). Generate with `cd proto && ./make-bindings.sh`.
+Defined in `l8types/proto/l8events.proto` (core types) and `l8types/proto/l8events_categories.proto` (16 category
+event messages); generated into `github.com/saichler/l8types/go/types/l8events`. This repo has no `proto/` directory.
 
 ### Enums
 
 | Enum | Values | Go Constants Prefix |
 |------|--------|---------------------|
 | `Severity` | 0=UNSPECIFIED, 1=INFO, 2=WARNING, 3=MINOR, 4=MAJOR, 5=CRITICAL | `Severity_SEVERITY_` |
-| `AlarmState` | 0=UNSPECIFIED, 1=ACTIVE, 2=ACKNOWLEDGED, 3=CLEARED, 4=SUPPRESSED | `AlarmState_ALARM_STATE_` |
 | `EventState` | 0=UNSPECIFIED, 1=NEW, 2=PROCESSED, 3=DISCARDED, 4=ARCHIVED | `EventState_EVENT_STATE_` |
 | `EventCategory` | 0=UNSPECIFIED, 1=AUDIT, 2=SYSTEM, 3=MONITORING, 4=SECURITY, 5=INTEGRATION, 6=CUSTOM, 7=NETWORK, 8=KUBERNETES, 9=PERFORMANCE, 10=SYSLOG, 11=TRAP, 12=COMPUTE, 13=STORAGE, 14=POWER, 15=GPU, 16=TOPOLOGY, 17=AUTOMATION | `EventCategory_EVENT_CATEGORY_` |
-| `MaintenanceStatus` | 0=UNSPECIFIED, 1=SCHEDULED, 2=ACTIVE, 3=COMPLETED, 4=CANCELLED | `MaintenanceStatus_MAINTENANCE_STATUS_` |
-| `RecurrenceType` | 0=UNSPECIFIED, 1=NONE, 2=DAILY, 3=WEEKLY, 4=MONTHLY | `RecurrenceType_RECURRENCE_TYPE_` |
 
 ### Sub-Category Enums (per EventCategory)
 
@@ -85,54 +88,6 @@ Defined in `proto/l8events.proto` (core types) and `proto/l8events_categories.pr
 | `ProcessedAt` | `processedAt` | int64 | Unix timestamp when processing completed |
 | `GeneratedAlarmId` | `generatedAlarmId` | string | If this event generated an alarm |
 
-#### `AlarmRecord` (state machine lifecycle)
-
-| Go Field | JSON Name | Type | Description |
-|----------|-----------|------|-------------|
-| `AlarmId` | `alarmId` | string | Primary key |
-| `DefinitionId` | `definitionId` | string | What rule/definition triggered this alarm |
-| `Name` | `name` | string | Alarm name |
-| `Description` | `description` | string | Alarm description |
-| `State` | `state` | AlarmState (int) | Current lifecycle state |
-| `Severity` | `severity` | Severity (int) | Current severity |
-| `OriginalSeverity` | `originalSeverity` | Severity (int) | Severity when first raised |
-| `SourceId` | `sourceId` | string | Entity the alarm is about |
-| `SourceName` | `sourceName` | string | Human-readable source name |
-| `SourceType` | `sourceType` | string | Source type |
-| `FirstOccurrence` | `firstOccurrence` | int64 | Unix timestamp of first occurrence |
-| `LastOccurrence` | `lastOccurrence` | int64 | Unix timestamp of last occurrence |
-| `OccurrenceCount` | `occurrenceCount` | int32 | Number of occurrences (dedup) |
-| `DedupKey` | `dedupKey` | string | Deduplication key |
-| `EventId` | `eventId` | string | Originating event ID |
-| `AcknowledgedBy` | `acknowledgedBy` | string | Who acknowledged |
-| `AcknowledgedAt` | `acknowledgedAt` | int64 | When acknowledged |
-| `ClearedBy` | `clearedBy` | string | Who cleared |
-| `ClearedAt` | `clearedAt` | int64 | When cleared |
-| `IsSuppressed` | `isSuppressed` | bool | Whether suppressed |
-| `SuppressedBy` | `suppressedBy` | string | Who/what suppressed |
-| `Attributes` | `attributes` | map[string]string | Extensible key-value pairs |
-| `Notes` | `notes` | []*AlarmNote | Attached notes |
-| `StateHistory` | `stateHistory` | []*AlarmStateChange | State transition audit trail |
-
-#### `AlarmNote` (child of AlarmRecord)
-
-| Go Field | JSON Name | Type |
-|----------|-----------|------|
-| `NoteId` | `noteId` | string |
-| `Author` | `author` | string |
-| `Text` | `text` | string |
-| `CreatedAt` | `createdAt` | int64 |
-
-#### `AlarmStateChange` (child of AlarmRecord)
-
-| Go Field | JSON Name | Type |
-|----------|-----------|------|
-| `FromState` | `fromState` | AlarmState (int) |
-| `ToState` | `toState` | AlarmState (int) |
-| `ChangedBy` | `changedBy` | string |
-| `Reason` | `reason` | string |
-| `ChangedAt` | `changedAt` | int64 |
-
 #### `ArchiveInfo`
 
 | Go Field | JSON Name | Type |
@@ -140,23 +95,6 @@ Defined in `proto/l8events.proto` (core types) and `proto/l8events_categories.pr
 | `ArchivedAt` | `archivedAt` | int64 |
 | `ArchivedBy` | `archivedBy` | string |
 | `ArchiveReason` | `archiveReason` | string |
-
-#### `MaintenanceWindow`
-
-| Go Field | JSON Name | Type | Description |
-|----------|-----------|------|-------------|
-| `WindowId` | `windowId` | string | Primary key |
-| `Name` | `name` | string | Window name |
-| `Description` | `description` | string | Description |
-| `Status` | `status` | MaintenanceStatus (int) | Current status |
-| `StartTime` | `startTime` | int64 | Unix timestamp |
-| `EndTime` | `endTime` | int64 | Unix timestamp |
-| `CreatedBy` | `createdBy` | string | Creator |
-| `CreatedAt` | `createdAt` | int64 | Creation timestamp |
-| `Recurrence` | `recurrence` | RecurrenceType (int) | Recurrence pattern |
-| `RecurrenceInterval` | `recurrenceInterval` | int32 | Interval value |
-| `ScopeIds` | `scopeIds` | []string | Entity IDs this window applies to |
-| `ScopeTypes` | `scopeTypes` | []string | Entity types this window applies to |
 
 ### Category Event Messages
 
@@ -488,25 +426,23 @@ All category event messages share common fields: `eventId`, `propertyId`, `sourc
 
 ---
 
-## Go Packages
+## Events Service
 
-### `services` — Events Service
+`ActivateEvents` registers the `Events` service (name `Events`, area `76`, primary key `EventId`) via
+`l8common.ActivateService`, backed by `EventCallback` (`ifs.IServiceCallback`). This is what `ifs.IEvents`
+(implemented in `l8utils/go/utils/events`) talks to via `vnic.Unicast("", "Events", 76, ifs.POST, record)`.
 
-The only wired backend feature. `ActivateEvents` registers the `Events` service (name `Events`,
-area `76`) on a `vnic`, backed by `EventCallback` (`ifs.IServiceCallback`). This is what
-`ifs.IEvents` (implemented in `l8utils/go/utils/events`) talks to via `vnic.Unicast(...)`.
+Called by `l8common` — not by projects.
 
-```go
-import (
-    evtservices "github.com/saichler/l8events/go/services"
-)
+| Operation | Behavior |
+|-----------|----------|
+| `POST` | `EventCallback.Before` generates `EventId`, stamps `ReceivedAt` (and `OccurredAt` if unset), defaults `State` to `EVENT_STATE_NEW`, then persists |
+| `PUT` | Rejected — events are immutable |
+| `PATCH` | Allowed (e.g. state changes) |
+| `GET` | L8Query — `from` uses the type name: `select * from EventRecord` |
 
-evtservices.ActivateEvents(dbcred, dbname, nic)
-```
-
-**On POST**, `EventCallback.Before` auto-generates `EventId`, stamps `ReceivedAt` (and `OccurredAt`
-if unset), and defaults `State` to `EVENT_STATE_NEW` before the record is persisted as-is.
-`EventRecord`s are immutable — PUT is rejected.
+It must run in exactly one process — which is why only `l8common` activates it; a second activation causes
+divergent caches (`SingleOwnerDatabaseTable`).
 
 ---
 
@@ -541,34 +477,35 @@ To run tests directly (after vendoring):
 cd go && go test ./...
 ```
 
-Tests live under `go/tests/`, one subdirectory per package, as black-box tests (`package xxx_test`)
-that exercise only the exported API. There are currently no tests for `services` — the `Events`
-service is exercised end-to-end by consumer projects that call `ActivateEvents` and post through
-`ifs.IEvents`, but this repo has no test of its own yet.
+There are currently no tests in this repo — the `Events` service is exercised end-to-end by consumer projects
+(where l8common activates it) that post through `ifs.IEvents`.
 
 ---
 
-## Consumer Integration Pattern
+## Project Integration (required in every project)
 
-### Go Backend
+### Backend
+
+Nothing to do — `l8common` activates the `Events` service. Projects must **not** call `ActivateEvents`.
+
+### UI `main.go`
 
 ```go
-import (
-    evtservices "github.com/saichler/l8events/go/services"
-    evt "github.com/saichler/l8events/go/types/l8events"
-)
+import l8events "github.com/saichler/l8types/go/types/l8events"
 
-// In main.go, after activating your other services:
-evtservices.ActivateEvents(dbcred, dbname, nic)
-
-// Anywhere with access to resources.Events() (ifs.IEvents):
-resources.Events().PostNetworkEvent(&evt.NetworkEvent{ /* ... */ })
+l8c.RegisterType(resources, &l8events.EventRecord{}, &l8events.EventRecordList{}, "EventId")
 ```
 
-Add to `go.mod`:
+### Posting events (from any service)
+
+```go
+import l8events "github.com/saichler/l8types/go/types/l8events"
+
+vnic.Resources().Events().PostNetworkEvent(&l8events.NetworkEvent{ /* ... */ })
 ```
-require github.com/saichler/l8events/go v0.0.0-<latest>
-```
+
+Fire-and-forget (unlike `Notify().Send`, which returns the delivery result). Projects need no Go dependency on
+`l8events` — the types come from `l8types`.
 
 ### l8ui Components
 
