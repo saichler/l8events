@@ -30,14 +30,13 @@ const (
 )
 
 func ActivateEvents(creds, dbname string, vnic ifs.IVNic) {
-	common.ActivateService(common.ServiceConfig{
-		ServiceName: EventsServiceName, ServiceArea: EventsServiceArea,
-		PrimaryKey: "EventId", Voter: true, NonUniqueKeys: []string{"OccurredAt"},
-		Replication: boolPtr(false), Callback: &EventCallback{},
-	}, &evt.EventRecord{}, &evt.EventRecordList{}, creds, dbname, vnic)
+	sla := common.NewOrmSLA(EventsServiceName, EventsServiceArea, "EventId", &EventCallback{},
+		&evt.EventRecord{}, &evt.EventRecordList{})
+	sla.SetVoter(true)
+	sla.SetNonUniqueKeys("OccurredAt")
+	sla.SetReplication(false)
+	common.ActivateService(sla, creds, dbname, vnic)
 }
-
-func boolPtr(b bool) *bool { return &b }
 
 type EventCallback struct{}
 
