@@ -17,6 +17,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	common "github.com/saichler/l8common/go/common"
@@ -51,6 +52,7 @@ func (this *EventCallback) Before(elem interface{}, action ifs.Action, isNotific
 
 	switch action {
 	case ifs.POST:
+		fmt.Println("DEBUG-EVT l8events Before POST notify=", isNotification, "msg=", event.Message)
 		common.GenerateID(&event.EventId)
 		event.ReceivedAt = time.Now().Unix()
 		if event.OccurredAt == 0 {
